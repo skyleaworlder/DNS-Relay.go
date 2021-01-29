@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+	"net"
+	"os"
+)
+
 // DNSMsgHdr is a struct of DNS MESSAGE Header Format
 // from RFC-1035 / RFC-2535
 //                                 1  1  1  1  1  1
@@ -141,6 +147,34 @@ func (msg DNSMsgHdr) parseFlags() (flags DNSMsgFlags) {
 	return
 }
 
-func main() {
+func checkError(successInfo string, err error) bool {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s", err.Error())
+		os.Exit(1)
+	} else {
+		fmt.Printf("DNS-Relay> Success: %s", successInfo)
+		return true
+	}
+	return false
+}
 
+// DNSRelay is the main function
+func DNSRelay() {
+	// DNS run over UDP port 53
+	port := ":53"
+	udpAddr, err := net.ResolveUDPAddr("udp", port)
+	checkError("udp construct", err)
+	listen, err := net.ListenUDP("udp", udpAddr)
+	checkError("udp listen success", err)
+
+	for {
+		buf := make([]byte, 256)
+		_, err := listen.Read(buf)
+		checkError("udp read success", err)
+		fmt.Println(buf)
+	}
+}
+
+func main() {
+	DNSRelay()
 }
