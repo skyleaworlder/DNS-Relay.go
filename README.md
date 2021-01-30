@@ -1,4 +1,6 @@
 # :earth_asia: DNS-Relay.go
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fskyleaworlder%2FDNS-Relay.go.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fskyleaworlder%2FDNS-Relay.go?ref=badge_shield)
+
 
 (semi-finished) RFC-1035 / RFC-2535 Learning "Note", a Simple Toy about DNS in Go.
 
@@ -17,3 +19,7 @@ Execute `main.go`:
 ```bash
 go run main.go
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fskyleaworlder%2FDNS-Relay.go.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fskyleaworlder%2FDNS-Relay.go?ref=badge_large)
