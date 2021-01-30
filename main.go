@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 // DNSMsgHdr is a struct of DNS MESSAGE Header Format
@@ -149,13 +152,35 @@ func (msg DNSMsgHdr) parseFlags() (flags DNSMsgFlags) {
 
 func checkError(successInfo string, err error) bool {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s", err.Error())
+		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s\n", err.Error())
 		os.Exit(1)
 	} else {
-		fmt.Printf("DNS-Relay> Success: %s", successInfo)
+		fmt.Printf("DNS-Relay> Success: %s\n", successInfo)
 		return true
 	}
 	return false
+}
+
+func initDNSHosts() (hosts map[string]string) {
+	file, err := os.Open("hosts")
+	checkError("open hosts config success", err)
+	defer file.Close()
+
+	rd := bufio.NewReader(file)
+	hosts = make(map[string]string)
+	for {
+		line, err := rd.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		checkError("read hosts config success", err)
+		// trim \n
+		dnsHostsLineArr := strings.Split(strings.Trim(line, "\n"), " ")
+		// string.Split get a slice: [ip, ' ', ' ', ' ', ..., domainName]
+		// len(slice)-1 to get the last element of slice
+		hosts[dnsHostsLineArr[0]] = dnsHostsLineArr[len(dnsHostsLineArr)-1]
+	}
+	return
 }
 
 // DNSRelay is the main function

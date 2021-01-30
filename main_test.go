@@ -17,3 +17,10 @@ func TestParseFlags(t *testing.T) {
 	}
 	fmt.Println(msg.parseFlags())
 }
+
+func TestInitDNSHosts(t *testing.T) {
+	dnsHosts := initDNSHosts()
+	for k, v := range dnsHosts {
+		fmt.Printf("key(%s): value(%s)\n", k, v)
+	}
+}
