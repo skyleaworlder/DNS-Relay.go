@@ -33,6 +33,15 @@ func TestParseDNSMsgHdr(t *testing.T) {
 	fmt.Println(dnsMsgHdr, flags)
 }
 
+func TestParseDNSQst(t *testing.T) {
+	var testData []byte = []byte{
+		0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
+		0x00, 0x01, 0x00, 0x01,
+	}
+	dnsMsgQst := parseDNSQst(testData)
+	fmt.Println(dnsMsgQst, dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
+}
+
 func TestInitDNSHosts(t *testing.T) {
 	dnsHosts := initDNSHosts()
 	for k, v := range dnsHosts {

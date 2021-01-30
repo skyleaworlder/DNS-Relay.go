@@ -166,6 +166,32 @@ func parseDNSHdr(msg []byte) (dnsMsgHdr DNSMsgHdr) {
 	return
 }
 
+// parseDNSQst is a func to draw Question field from DNS MESSAGE
+// DNS Question includes QNAME, QTYPE and QCLASS
+// the length of QTYPE and QCLASS is a constant, while QNAME's length varies
+// about QNAME, for instance, google.com
+// "google.com" will be separated into 2 pieces, "google" and "com"
+// since a length octet followed by domain name octet, the octet of "google.com" is:
+// || 06 | 67 6f 6f 67 6c 65 || 03 | 63 6f 6d || 00 ||
+// |-len-|-------google------|-len-|----com----|-00-|
+// so the last octet, namely, "00" will be a separator between QNAME and QTYPE
+func parseDNSQst(msg []byte) (dnsMsgQst DNSMsgQst) {
+	i := 0
+	for msg[i] != 0 {
+		i = i + 1
+	}
+	// [0:i+2], as for "google.com", i = 11
+	// but 06 67 6f 6f 67 6c 65 03 63 6f 6d 00, i should be 12
+	qname := msg[0 : i+1]
+	qtype := binary.BigEndian.Uint16(msg[i+1 : i+3])
+	qclass := binary.BigEndian.Uint16(msg[i+3 : i+5])
+
+	dnsMsgQst = DNSMsgQst{
+		QNAME: qname, QTYPE: qtype, QCLASS: qclass,
+	}
+	return
+}
+
 func checkError(successInfo string, err error) bool {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s\n", err.Error())
