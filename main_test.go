@@ -103,6 +103,18 @@ func TestCreateDNSMsgAsr(t *testing.T) {
 	fmt.Println(createDNSMsgAsr(1, 1, 12, 4, "192.168.10.1"))
 }
 
+func TestGetIPAddrByDomainName(t *testing.T) {
+	fmt.Println("TestgetIPAddrByDomainName:")
+	hosts := initDNSHosts()
+	var testData []string = []string{
+		"www.baidu.com", "www.bilibili.com", "www.ljg.top",
+	}
+	for _, dn := range testData {
+		ip, _ := getIPAddrByDomainName(hosts, dn)
+		fmt.Printf("ip found is %s\n", ip)
+	}
+}
+
 func TestInitDNSHosts(t *testing.T) {
 	fmt.Println("TestInitDNSHosts:")
 	dnsHosts := initDNSHosts()

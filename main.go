@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -293,11 +294,11 @@ func createDNSMsgResponse(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []by
 	return
 }
 
-func checkError(successInfo string, err error) bool {
-	if err != nil {
+func checkError(successInfo string, err error, debug bool) bool {
+	if err != nil && debug {
 		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s\n", err.Error())
 		os.Exit(1)
-	} else {
+	} else if debug {
 		fmt.Printf("DNS-Relay> Success: %s\n", successInfo)
 		return true
 	}
@@ -308,7 +309,7 @@ func checkError(successInfo string, err error) bool {
 // this func read "hosts" to initialize hosts and return map to main_func
 func initDNSHosts() (hosts map[string]string) {
 	file, err := os.Open("hosts")
-	checkError("open hosts config success", err)
+	checkError("open hosts config success", err, false)
 	defer file.Close()
 
 	rd := bufio.NewReader(file)
@@ -318,7 +319,7 @@ func initDNSHosts() (hosts map[string]string) {
 		if err == io.EOF {
 			break
 		}
-		checkError("read hosts config success", err)
+		checkError("read hosts config success", err, false)
 		// trim \n
 		dnsHostsLineArr := strings.Split(strings.Trim(line, "\n"), " ")
 		// string.Split get a slice: [ip, ' ', ' ', ' ', ..., domainName]
@@ -328,23 +329,39 @@ func initDNSHosts() (hosts map[string]string) {
 	return
 }
 
+// findDomainName is a function that draws ip address from hosts map using a given domainName
+// if not found, return a string whose length equals 0, and error
+// if found, return ip address from map and nil
+func getIPAddrByDomainName(hosts map[string]string, domainNameInput string) (ip string, err error) {
+	for ip, domainName := range hosts {
+		if domainName == domainNameInput {
+			return ip, nil
+		}
+	}
+	return "", errors.New("DNS-Relay> Cache Not Found")
+}
+
 // DNSRelay is the main function
 func DNSRelay(hosts map[string]string) {
 	// DNS run over UDP port 53
 	port := ":53"
 	udpAddr, err := net.ResolveUDPAddr("udp", port)
-	checkError("udp construct", err)
+	checkError("udp construct", err, false)
 	listen, err := net.ListenUDP("udp", udpAddr)
-	checkError("udp listen success", err)
+	checkError("udp listen success", err, false)
 
 	for {
 		buf := make([]byte, 256)
 		_, err := listen.Read(buf)
-		checkError("udp read success", err)
-		dnsMsgHdr, dnsMsgQst := parseDNSRequest(buf)
-		fmt.Println(dnsMsgHdr.ID, dnsMsgHdr.parseFlags(), dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT, dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT)
-		fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
-		fmt.Println(dnsMsgQst.parseDomainName())
+		checkError("udp read success", err, false)
+		_, dnsMsgQst := parseDNSRequest(buf)
+		targetDomainName := dnsMsgQst.parseDomainName()
+		targetIP, _ := getIPAddrByDomainName(hosts, targetDomainName)
+
+		fmt.Printf("target IP wuhu: %s, target Domain Name: %s\n", targetIP, targetDomainName)
+		//fmt.Println(dnsMsgHdr.ID, dnsMsgHdr.parseFlags(), dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT, dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT)
+		//fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
+		//fmt.Println(dnsMsgQst.parseDomainName())
 	}
 }
 
