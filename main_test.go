@@ -98,6 +98,11 @@ func TestCreateDNSMsgResponse(t *testing.T) {
 	fmt.Println(len(resp), resp)
 }
 
+func TestCreateDNSMsgAsr(t *testing.T) {
+	fmt.Println("TestCreateDNSMsgAsr:")
+	fmt.Println(createDNSMsgAsr(1, 1, 12, 4, "192.168.10.1"))
+}
+
 func TestInitDNSHosts(t *testing.T) {
 	fmt.Println("TestInitDNSHosts:")
 	dnsHosts := initDNSHosts()

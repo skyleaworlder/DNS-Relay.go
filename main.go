@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -225,6 +226,26 @@ func parseDNSRequest(msg []byte) (dnsMsgHdr DNSMsgHdr, dnsMsgQst DNSMsgQst) {
 	return
 }
 
+// createDNSMsgRR is a function to construct DNSMsgRR
+// this Resource Record is Answer
+// asrRData is Address or CName, but in my dns relay, it's only Address
+func createDNSMsgAsr(asrType uint16, asrClass uint16, asrTTL uint32, asrRDLength uint16, asrRData string) (asr DNSMsgRR) {
+	asr.NAME = []byte{0xc0, 0x0c}
+	asr.TYPE = asrType
+	asr.CLASS = asrClass
+	asr.TTL = asrTTL
+	asr.RDLENGTH = asrRDLength
+
+	// Dotted Decimal Notation
+	address := strings.Split(asrRData, ".")
+	for _, octet := range address {
+		// in fact, bitSize(parameter) of ParseInt indicates the size of return value
+		I, _ := strconv.ParseInt(octet, 10, 9)
+		asr.RDATA = append(asr.RDATA, byte(I))
+	}
+	return
+}
+
 // createDNSMsgResponse is a function to generate a response to DNS query initiator
 // using Header, Question and single Resource Record field to pack an DNS MESSAGE
 func createDNSMsgResponse(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []byte) {
@@ -308,7 +329,7 @@ func initDNSHosts() (hosts map[string]string) {
 }
 
 // DNSRelay is the main function
-func DNSRelay() {
+func DNSRelay(hosts map[string]string) {
 	// DNS run over UDP port 53
 	port := ":53"
 	udpAddr, err := net.ResolveUDPAddr("udp", port)
@@ -328,5 +349,6 @@ func DNSRelay() {
 }
 
 func main() {
-	DNSRelay()
+	hosts := initDNSHosts()
+	DNSRelay(hosts)
 }
