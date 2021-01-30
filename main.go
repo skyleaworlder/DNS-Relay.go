@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -150,6 +151,21 @@ func (msg DNSMsgHdr) parseFlags() (flags DNSMsgFlags) {
 	return
 }
 
+func parseDNSHdr(msg [12]byte) (dnsMsgHdr DNSMsgHdr) {
+	id := binary.BigEndian.Uint16(msg[0:2])
+	flags := binary.BigEndian.Uint16(msg[2:4])
+	qdcount := binary.BigEndian.Uint16(msg[4:6])
+	ancount := binary.BigEndian.Uint16(msg[6:8])
+	nscount := binary.BigEndian.Uint16(msg[8:10])
+	arcount := binary.BigEndian.Uint16(msg[10:12])
+
+	dnsMsgHdr = DNSMsgHdr{
+		ID: id, FLAGS: flags, QDCOUNT: qdcount,
+		ANCOUNT: ancount, NSCOUNT: nscount, ARCOUNT: arcount,
+	}
+	return
+}
+
 func checkError(successInfo string, err error) bool {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s\n", err.Error())
@@ -161,6 +177,8 @@ func checkError(successInfo string, err error) bool {
 	return false
 }
 
+// initDNSHosts is a func to generate hosts map
+// this func read "hosts" to initialize hosts and return map to main_func
 func initDNSHosts() (hosts map[string]string) {
 	file, err := os.Open("hosts")
 	checkError("open hosts config success", err)
@@ -196,7 +214,7 @@ func DNSRelay() {
 		buf := make([]byte, 256)
 		_, err := listen.Read(buf)
 		checkError("udp read success", err)
-		fmt.Println(buf)
+		fmt.Println(string(buf), buf)
 	}
 }
 
