@@ -151,6 +151,29 @@ func (msg DNSMsgHdr) parseFlags() (flags DNSMsgFlags) {
 	return
 }
 
+// parseDomainName is a func that draw domain name(string) from struct DNSMsgQst
+// e.g. 0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00
+// 		will be translated into "google.com"
+func (qst DNSMsgQst) parseDomainName() (domainName string) {
+	domainName = ""
+	qname := qst.QNAME
+	for i := 0; qname[i] != 0; {
+		domainLen := int(qname[i])
+		// since length of domain name also occupies an octet
+		// for example, "google.com":
+		// i++ make j begin at domain name 'g' or 'c', instead of length '0x06' or '0x03'
+		i++
+		for j := 0; j < domainLen; j++ {
+			domainName += string(qname[i+j])
+		}
+		// it has to be NOTICED that "google.com" will be translated into "google.com."
+		domainName += "."
+		i += domainLen
+	}
+	// trim the last '.'
+	return strings.Trim(domainName, ".")
+}
+
 func parseDNSHdr(msg []byte) (dnsMsgHdr DNSMsgHdr) {
 	id := binary.BigEndian.Uint16(msg[0:2])
 	flags := binary.BigEndian.Uint16(msg[2:4])

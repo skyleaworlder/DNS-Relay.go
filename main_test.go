@@ -19,6 +19,17 @@ func TestParseFlags(t *testing.T) {
 	fmt.Println(msg.parseFlags())
 }
 
+// TestParseDomainName
+func TestParseDomainName(t *testing.T) {
+	fmt.Println("TestParseDomainName:")
+	qst := DNSMsgQst{
+		QNAME:  []byte{0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00},
+		QCLASS: 0,
+		QTYPE:  1,
+	}
+	fmt.Println(qst.parseDomainName())
+}
+
 func TestParseDNSMsgHdr(t *testing.T) {
 	fmt.Println("TestParseDNSMsgHdr:")
 	var testData []byte = []byte{
