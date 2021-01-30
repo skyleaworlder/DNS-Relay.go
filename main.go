@@ -192,6 +192,16 @@ func parseDNSQst(msg []byte) (dnsMsgQst DNSMsgQst) {
 	return
 }
 
+// parseDNSRequest is a tool function that handle DNS Request MESSAGE
+// translate octet-stream to struct DNSMsgHdr/DNSMsgQst defined in RFC-1035
+func parseDNSRequest(msg []byte) (dnsMsgHdr DNSMsgHdr, dnsMsgQst DNSMsgQst) {
+	hdr := msg[0:12]
+	dnsMsgHdr = parseDNSHdr(hdr)
+	qst := msg[12:]
+	dnsMsgQst = parseDNSQst(qst)
+	return
+}
+
 func checkError(successInfo string, err error) bool {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s\n", err.Error())
