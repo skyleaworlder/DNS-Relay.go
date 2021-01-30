@@ -73,6 +73,31 @@ func TestParseDNSRequest(t *testing.T) {
 	fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
 }
 
+func TestCreateDNSMsgResponse(t *testing.T) {
+	fmt.Println("TestCreateDNSMsgResponse:")
+	var testData []byte = []byte{
+		0x6a, 0xec,
+		0x81, 0x80,
+		0x00, 0x01,
+		0x00, 0x01,
+		0x00, 0x00,
+		0x00, 0x00,
+		0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
+		0x00, 0x00, 0x00, 0x01,
+	}
+	dnsMsgHdr, dnsMsgQst := parseDNSRequest(testData)
+	dnsMsgAsr := DNSMsgRR{
+		NAME:     []byte{0xc0, 0x0c},
+		TYPE:     1,
+		CLASS:    1,
+		TTL:      19,
+		RDLENGTH: 4,
+		RDATA:    []byte{0x3b, 0x18, 0x03, 0xae},
+	}
+	resp := createDNSMsgResponse(dnsMsgHdr, dnsMsgQst, dnsMsgAsr)
+	fmt.Println(len(resp), resp)
+}
+
 func TestInitDNSHosts(t *testing.T) {
 	fmt.Println("TestInitDNSHosts:")
 	dnsHosts := initDNSHosts()

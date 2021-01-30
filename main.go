@@ -225,6 +225,53 @@ func parseDNSRequest(msg []byte) (dnsMsgHdr DNSMsgHdr, dnsMsgQst DNSMsgQst) {
 	return
 }
 
+// createDNSMsgResponse is a function to generate a response to DNS query initiator
+// using Header, Question and single Resource Record field to pack an DNS MESSAGE
+func createDNSMsgResponse(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []byte) {
+	// DNS Message Header
+	TransactionID := make([]byte, 2)
+	Flags := make([]byte, 2)
+	Questions := make([]byte, 2)
+	AnswerRRs := make([]byte, 2)
+	AuthorityRRs := make([]byte, 2)
+	AdditionalRRs := make([]byte, 2)
+	binary.BigEndian.PutUint16(TransactionID, hdr.ID)
+	binary.BigEndian.PutUint16(Flags, hdr.FLAGS)
+	binary.BigEndian.PutUint16(Questions, hdr.QDCOUNT)
+	binary.BigEndian.PutUint16(AnswerRRs, hdr.ANCOUNT)
+	binary.BigEndian.PutUint16(AuthorityRRs, hdr.NSCOUNT)
+	binary.BigEndian.PutUint16(AdditionalRRs, hdr.ARCOUNT)
+
+	// DNS Message Questions field
+	QstName := qst.QNAME
+	QstType := make([]byte, 2)
+	QstClass := make([]byte, 2)
+	binary.BigEndian.PutUint16(QstType, qst.QTYPE)
+	binary.BigEndian.PutUint16(QstClass, qst.QCLASS)
+
+	// DNS Message Answer field
+	AsrName := asr.NAME
+	AsrType := make([]byte, 2)
+	AsrClass := make([]byte, 2)
+	AsrTTL := make([]byte, 4)
+	AsrDataLength := make([]byte, 2)
+	AsrAddress := asr.RDATA
+	binary.BigEndian.PutUint16(AsrType, asr.TYPE)
+	binary.BigEndian.PutUint16(AsrClass, asr.CLASS)
+	binary.BigEndian.PutUint32(AsrTTL, asr.TTL)
+	binary.BigEndian.PutUint16(AsrDataLength, asr.RDLENGTH)
+
+	fields := [][]byte{
+		TransactionID, Flags, Questions, AnswerRRs, AuthorityRRs, AdditionalRRs,
+		QstName, QstType, QstClass,
+		AsrName, AsrType, AsrClass, AsrTTL, AsrDataLength, AsrAddress,
+	}
+	for _, v := range fields {
+		resp = append(resp, v...)
+	}
+	return
+}
+
 func checkError(successInfo string, err error) bool {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "DNS-Relay> Error occur: %s\n", err.Error())
@@ -273,7 +320,10 @@ func DNSRelay() {
 		buf := make([]byte, 256)
 		_, err := listen.Read(buf)
 		checkError("udp read success", err)
-		fmt.Println(string(buf), buf)
+		dnsMsgHdr, dnsMsgQst := parseDNSRequest(buf)
+		fmt.Println(dnsMsgHdr.ID, dnsMsgHdr.parseFlags(), dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT, dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT)
+		fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
+		fmt.Println(dnsMsgQst.parseDomainName())
 	}
 }
 
