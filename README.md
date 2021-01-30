@@ -1,6 +1,6 @@
-# DNS-Relay.go
+# :earth_asia: DNS-Relay.go
 
-A Go / Socket Simple Toy
+(semi-finished) RFC-1035 / RFC-2535 Learning "Note", a Simple Toy about DNS in Go.
 
 Change DNS address on PC:
 
