@@ -19,7 +19,7 @@ func TestParseFlags(t *testing.T) {
 }
 
 func TestParseDNSMsgHdr(t *testing.T) {
-	var testData [12]byte = [12]byte{
+	var testData []byte = []byte{
 		0x6a, 0x6c,
 		0x81, 0x80,
 		0x00, 0x01,

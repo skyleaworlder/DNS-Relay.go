@@ -151,7 +151,7 @@ func (msg DNSMsgHdr) parseFlags() (flags DNSMsgFlags) {
 	return
 }
 
-func parseDNSHdr(msg [12]byte) (dnsMsgHdr DNSMsgHdr) {
+func parseDNSHdr(msg []byte) (dnsMsgHdr DNSMsgHdr) {
 	id := binary.BigEndian.Uint16(msg[0:2])
 	flags := binary.BigEndian.Uint16(msg[2:4])
 	qdcount := binary.BigEndian.Uint16(msg[4:6])
