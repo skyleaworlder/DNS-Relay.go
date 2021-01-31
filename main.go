@@ -200,7 +200,7 @@ func parseDNSHdr(msg []byte) (dnsMsgHdr DNSMsgHdr) {
 // || 06 | 67 6f 6f 67 6c 65 || 03 | 63 6f 6d || 00 ||
 // |-len-|-------google------|-len-|----com----|-00-|
 // so the last octet, namely, "00" will be a separator between QNAME and QTYPE
-func parseDNSQst(msg []byte) (dnsMsgQst DNSMsgQst) {
+func parseDNSQst(msg []byte) (dnsMsgQst DNSMsgQst, length uint16) {
 	i := 0
 	for msg[i] != 0 {
 		i = i + 1
@@ -214,16 +214,18 @@ func parseDNSQst(msg []byte) (dnsMsgQst DNSMsgQst) {
 	dnsMsgQst = DNSMsgQst{
 		QNAME: qname, QTYPE: qtype, QCLASS: qclass,
 	}
+	length = uint16(i + 5)
 	return
 }
 
 // parseDNSRequest is a tool function that handle DNS Request MESSAGE
 // translate octet-stream to struct DNSMsgHdr/DNSMsgQst defined in RFC-1035
-func parseDNSRequest(msg []byte) (dnsMsgHdr DNSMsgHdr, dnsMsgQst DNSMsgQst) {
+func parseDNSRequest(msg []byte) (dnsMsgHdr DNSMsgHdr, dnsMsgQst DNSMsgQst, length uint16) {
 	hdr := msg[0:12]
 	dnsMsgHdr = parseDNSHdr(hdr)
 	qst := msg[12:]
-	dnsMsgQst = parseDNSQst(qst)
+	dnsMsgQst, qstLen := parseDNSQst(qst)
+	length = qstLen + 12
 	return
 }
 
@@ -305,6 +307,13 @@ func composeHdrQstAsr(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []byte) 
 	for _, v := range fields {
 		resp = append(resp, v...)
 	}
+	return
+}
+
+// composeHdrQstMultiRR is a simple function to comcat hdr, qst and multi-RR
+func composeHdrQstMultiRR(hdr DNSMsgHdr, qst DNSMsgQst, rr []byte) (resp []byte) {
+	resp = composeHdrQst(hdr, qst)
+	resp = append(resp, rr...)
 	return
 }
 
@@ -396,7 +405,7 @@ func DNSRelay(hosts map[string]string) {
 		_, addr, err := clientsConn.ReadFrom(buf)
 		checkError("udp read success", err, true)
 		fmt.Println("clients remote addr:", addr, addr.String())
-		dnsMsgHdr, dnsMsgQst := parseDNSRequest(buf)
+		dnsMsgHdr, dnsMsgQst, _ := parseDNSRequest(buf)
 		targetDomainName := dnsMsgQst.parseDomainName()
 		targetIP, _ := getIPAddrByDomainName(hosts, targetDomainName)
 
@@ -404,9 +413,9 @@ func DNSRelay(hosts map[string]string) {
 		if len(targetIP) == 0 {
 			fmt.Println("communicate with remote DNS")
 			resp := communicateWithForwardDNS(connToRemote, dnsMsgHdr, dnsMsgQst)
-			// TODO: parseDNSRequest(answer)
-			//hdr, qst := parseDNSRequest(resp)
-			//hdr.ID--
+			hdr, qst, length := parseDNSRequest(resp)
+			hdr.ID--
+			resp = composeHdrQstMultiRR(hdr, qst, resp[length:])
 			_, err = clientsConn.WriteTo(resp, addr)
 			checkError("return udp success", err, true)
 			fmt.Println("wuhu!", resp)
