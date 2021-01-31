@@ -73,8 +73,8 @@ func TestParseDNSRequest(t *testing.T) {
 	fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
 }
 
-func TestCreateDNSMsgResponse(t *testing.T) {
-	fmt.Println("TestCreateDNSMsgResponse:")
+func TestComposeHdrQstAsr(t *testing.T) {
+	fmt.Println("TestComposeHdrQstAsr:")
 	var testData []byte = []byte{
 		0x6a, 0xec,
 		0x81, 0x80,
@@ -94,7 +94,7 @@ func TestCreateDNSMsgResponse(t *testing.T) {
 		RDLENGTH: 4,
 		RDATA:    []byte{0x3b, 0x18, 0x03, 0xae},
 	}
-	resp := createDNSMsgResponse(dnsMsgHdr, dnsMsgQst, dnsMsgAsr)
+	resp := composeHdrQstAsr(dnsMsgHdr, dnsMsgQst, dnsMsgAsr)
 	fmt.Println(len(resp), resp)
 }
 

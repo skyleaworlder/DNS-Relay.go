@@ -247,9 +247,9 @@ func createDNSMsgAsr(asrType uint16, asrClass uint16, asrTTL uint32, asrRDLength
 	return
 }
 
-// createDNSMsgResponse is a function to generate a response to DNS query initiator
-// using Header, Question and single Resource Record field to pack an DNS MESSAGE
-func createDNSMsgResponse(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []byte) {
+// composeHdrQst is a function to compose struct DNSMsgHdr and DNSMsgQst
+// this function aims at reusing some code and creating DNS Relay MESSAGE
+func composeHdrQst(hdr DNSMsgHdr, qst DNSMsgQst) (relay []byte) {
 	// DNS Message Header
 	TransactionID := make([]byte, 2)
 	Flags := make([]byte, 2)
@@ -271,6 +271,22 @@ func createDNSMsgResponse(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []by
 	binary.BigEndian.PutUint16(QstType, qst.QTYPE)
 	binary.BigEndian.PutUint16(QstClass, qst.QCLASS)
 
+	fields := [][]byte{
+		TransactionID, Flags, Questions, AnswerRRs, AuthorityRRs, AdditionalRRs,
+		QstName, QstType, QstClass,
+	}
+	for _, v := range fields {
+		relay = append(relay, v...)
+	}
+	return
+}
+
+// composeHdrQstAsr is a function to generate a response to DNS query initiator
+// using Header, Question and single Resource Record field to pack an DNS MESSAGE
+func composeHdrQstAsr(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []byte) {
+	// compose struct DNSMsgHdr and DNSMsgQst
+	resp = composeHdrQst(hdr, qst)
+
 	// DNS Message Answer field
 	AsrName := asr.NAME
 	AsrType := make([]byte, 2)
@@ -284,8 +300,6 @@ func createDNSMsgResponse(hdr DNSMsgHdr, qst DNSMsgQst, asr DNSMsgRR) (resp []by
 	binary.BigEndian.PutUint16(AsrDataLength, asr.RDLENGTH)
 
 	fields := [][]byte{
-		TransactionID, Flags, Questions, AnswerRRs, AuthorityRRs, AdditionalRRs,
-		QstName, QstType, QstClass,
 		AsrName, AsrType, AsrClass, AsrTTL, AsrDataLength, AsrAddress,
 	}
 	for _, v := range fields {
@@ -339,6 +353,10 @@ func getIPAddrByDomainName(hosts map[string]string, domainNameInput string) (ip 
 		}
 	}
 	return "", errors.New("DNS-Relay> Cache Not Found")
+}
+
+func sendMsgToForwardDNS(hdr DNSMsgHdr, qst DNSMsgQst) {
+
 }
 
 // DNSRelay is the main function
