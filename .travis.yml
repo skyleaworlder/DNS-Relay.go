@@ -8,7 +8,5 @@ go:
   - master
   - 1.15.x
   - 1.14.x
-install:
-  - go get github.com/skyleaworlder/DNS-Relay.go@main
 script:
   - go test -run ^Test -v github.com/skyleaworlder/DNS-Relay.go
