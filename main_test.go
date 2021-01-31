@@ -54,7 +54,7 @@ func TestParseDNSQst(t *testing.T) {
 		0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
 		0x00, 0x01, 0x00, 0x01,
 	}
-	dnsMsgQst := parseDNSQst(testData)
+	dnsMsgQst, _ := parseDNSQst(testData)
 	fmt.Println(dnsMsgQst, dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
 }
 
@@ -70,7 +70,7 @@ func TestParseDNSRequest(t *testing.T) {
 		0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
 		0x00, 0x00, 0x00, 0x01,
 	}
-	dnsMsgHdr, dnsMsgQst := parseDNSRequest(testData)
+	dnsMsgHdr, dnsMsgQst, _ := parseDNSRequest(testData)
 	fmt.Println(dnsMsgHdr.ID, dnsMsgHdr.parseFlags(), dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT, dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT)
 	fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
 }
@@ -87,7 +87,7 @@ func TestComposeHdrQstAsr(t *testing.T) {
 		0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
 		0x00, 0x00, 0x00, 0x01,
 	}
-	dnsMsgHdr, dnsMsgQst := parseDNSRequest(testData)
+	dnsMsgHdr, dnsMsgQst, _ := parseDNSRequest(testData)
 	dnsMsgAsr := DNSMsgRR{
 		NAME:     []byte{0xc0, 0x0c},
 		TYPE:     1,
