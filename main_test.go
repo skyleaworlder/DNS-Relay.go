@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"os"
 	"testing"
 )
 
@@ -120,5 +122,38 @@ func TestInitDNSHosts(t *testing.T) {
 	dnsHosts := initDNSHosts()
 	for k, v := range dnsHosts {
 		fmt.Printf("key(%s): value(%s)\n", k, v)
+	}
+}
+
+func TestGoSocket(t *testing.T) {
+	var testData []byte = []byte{
+		0x6a, 0xec,
+		0x01, 0x00,
+		0x00, 0x01,
+		0x00, 0x01,
+		0x00, 0x00,
+		0x00, 0x00,
+		0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
+		0x00, 0x00, 0x00, 0x01,
+	}
+	fmt.Println("Go Socket test:")
+	udpAddr, _ := net.ResolveUDPAddr("udp", ":80")
+	fmt.Println("udpAddr.IP should be <nil>")
+	fmt.Println("udpAddr ip:", udpAddr.IP, ", port:", udpAddr.Port, ", zone:", udpAddr.Zone)
+	conn, _ := net.Dial("udp", "192.168.10.1:53")
+
+	buf := make([]byte, 32)
+	for i := 0; i < 5; i++ {
+		_, err := conn.Write(testData)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "fuck!: %s", err.Error())
+		}
+		fmt.Println("lvelvelve:", conn.RemoteAddr())
+		// result, err := ioutil.ReadAll(conn)
+		_, err = conn.Read(buf)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "fuck!: %s", err.Error())
+		}
+		fmt.Println(string(buf), buf)
 	}
 }

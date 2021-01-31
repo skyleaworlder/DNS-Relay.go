@@ -355,24 +355,46 @@ func getIPAddrByDomainName(hosts map[string]string, domainNameInput string) (ip 
 	return "", errors.New("DNS-Relay> Cache Not Found")
 }
 
-func sendMsgToForwardDNS(hdr DNSMsgHdr, qst DNSMsgQst) {
-
+// communicateWithForwardDNS is a function to send&recv Msg to&from remote DNS
+// NOTICE: conn is a parameter that specifies remote DNS ip address
+func communicateWithForwardDNS(conn *net.UDPConn, hdr DNSMsgHdr, qst DNSMsgQst) (resp []byte) {
+	// use different DNS ID
+	resp = make([]byte, 256)
+	hdr.ID++
+	relay := composeHdrQst(hdr, qst)
+	_, err := conn.Write(relay)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "UDPConn send msg failed: %s\n", err.Error())
+	}
+	_, err = conn.Read(resp)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "UDPConn recv msg failed: %s\n", err.Error())
+	}
+	return
 }
 
 // DNSRelay is the main function
 func DNSRelay(hosts map[string]string) {
-	// DNS run over UDP port 53
+
+	// local DNS run over UDP port 53
 	port := ":53"
 	udpAddr, err := net.ResolveUDPAddr("udp", port)
-	checkError("udp construct", err, false)
+	checkError("udp construct", err, true)
 	listen, err := net.ListenUDP("udp", udpAddr)
-	checkError("udp listen success", err, false)
+	checkError("udp listen success", err, true)
+
+	// local DNS communicate with remote DNS
+	remoteDNSAddr := "192.168.10.1:53"
+	udpRemoteDNSAddr, _ := net.ResolveUDPAddr("udp", remoteDNSAddr)
+	// in fact, i don't know why laddr should be nil(127.0.0.1) instead of 127.0.0.1:53
+	connToRemote, err := net.DialUDP("udp", nil, udpRemoteDNSAddr)
+	checkError("success to create a dial towards remote", err, true)
 
 	for {
-		buf := make([]byte, 256)
+		buf := make([]byte, 512)
 		_, err := listen.Read(buf)
-		checkError("udp read success", err, false)
-		_, dnsMsgQst := parseDNSRequest(buf)
+		checkError("udp read success", err, true)
+		dnsMsgHdr, dnsMsgQst := parseDNSRequest(buf)
 		targetDomainName := dnsMsgQst.parseDomainName()
 		targetIP, _ := getIPAddrByDomainName(hosts, targetDomainName)
 
@@ -380,6 +402,9 @@ func DNSRelay(hosts map[string]string) {
 		//fmt.Println(dnsMsgHdr.ID, dnsMsgHdr.parseFlags(), dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT, dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT)
 		//fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
 		//fmt.Println(dnsMsgQst.parseDomainName())
+
+		resp := communicateWithForwardDNS(connToRemote, dnsMsgHdr, dnsMsgQst)
+		fmt.Println("wuhu!", resp)
 	}
 }
 
