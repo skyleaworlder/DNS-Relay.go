@@ -382,8 +382,8 @@ func DNSRelay(hosts map[string]string) {
 
 	// local DNS run over UDP port 53
 	port := ":53"
-	listen, err := net.ListenPacket("udp", port)
-	checkError("udp listen success", err, true)
+	clientsConn, err := net.ListenPacket("udp", port)
+	checkError("udp clients success", err, true)
 
 	// local DNS communicate with remote DNS
 	remoteDNSAddr := "192.168.10.1:53"
@@ -393,9 +393,9 @@ func DNSRelay(hosts map[string]string) {
 
 	for {
 		buf := make([]byte, 512)
-		_, addr, err := listen.ReadFrom(buf)
+		_, addr, err := clientsConn.ReadFrom(buf)
 		checkError("udp read success", err, true)
-		fmt.Println("listen remote addr:", addr, addr.String())
+		fmt.Println("clients remote addr:", addr, addr.String())
 		dnsMsgHdr, dnsMsgQst := parseDNSRequest(buf)
 		targetDomainName := dnsMsgQst.parseDomainName()
 		targetIP, _ := getIPAddrByDomainName(hosts, targetDomainName)
@@ -404,14 +404,36 @@ func DNSRelay(hosts map[string]string) {
 		if len(targetIP) == 0 {
 			fmt.Println("communicate with remote DNS")
 			resp := communicateWithForwardDNS(connToRemote, dnsMsgHdr, dnsMsgQst)
-			resp[0]--
-			_, err = listen.WriteTo(resp, addr)
+			// TODO: parseDNSRequest(answer)
+			//hdr, qst := parseDNSRequest(resp)
+			//hdr.ID--
+			_, err = clientsConn.WriteTo(resp, addr)
 			checkError("return udp success", err, true)
 			fmt.Println("wuhu!", resp)
+		} else if targetIP == "127.0.0.1" || targetIP == "0.0.0.0" {
+			// 127.0.0.1 and 0.0.0.0 is 2 types of forbidden ip in DNS hosts
+			// RCODE(3) in "0x8183" means name error
+			hdr := DNSMsgHdr{
+				dnsMsgHdr.ID, 0x8183,
+				dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT,
+				dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT,
+			}
+			resp := composeHdrQst(hdr, dnsMsgQst)
+			fmt.Println("resp:", resp)
+			clientsConn.WriteTo(resp, addr)
+		} else {
+			// found in hosts
+			fmt.Println("found in hosts:", targetIP, "<=>", targetDomainName)
+			hdr := DNSMsgHdr{
+				dnsMsgHdr.ID, 0x8180,
+				dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT,
+				dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT,
+			}
+			asr := createDNSMsgAsr(1, 1, 31, 4, targetIP)
+			resp := composeHdrQstAsr(hdr, dnsMsgQst, asr)
+			fmt.Println("resp:", resp)
+			clientsConn.WriteTo(resp, addr)
 		}
-		//fmt.Println(dnsMsgHdr.ID, dnsMsgHdr.parseFlags(), dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT, dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT)
-		//fmt.Println(dnsMsgQst.QNAME, dnsMsgQst.QTYPE, dnsMsgQst.QCLASS)
-		//fmt.Println(dnsMsgQst.parseDomainName())
 	}
 }
 
