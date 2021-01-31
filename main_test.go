@@ -126,6 +126,7 @@ func TestInitDNSHosts(t *testing.T) {
 }
 
 func TestGoSocket(t *testing.T) {
+	t.Skip("skip in test")
 	var testData []byte = []byte{
 		0x6a, 0xec,
 		0x01, 0x00,
