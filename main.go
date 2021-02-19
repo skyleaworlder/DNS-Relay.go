@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // DNSMsgHdr is a struct of DNS MESSAGE Header Format
@@ -382,8 +383,10 @@ func communicateWithForwardDNS(conn *net.UDPConn, hdr DNSMsgHdr, qst DNSMsgQst) 
 	return
 }
 
-func coreDNSRelay() {
-
+// safeBuf is a struct contain sync.Mutex to ensure the safety of buffer
+type safeBuf struct {
+	buf []byte
+	mtx sync.Mutex
 }
 
 // DNSRelay is the main function
@@ -401,48 +404,67 @@ func DNSRelay(hosts map[string]string) {
 	checkError("success to create a dial towards remote", err, true)
 
 	for {
-		buf := make([]byte, 512)
-		_, addr, err := clientsConn.ReadFrom(buf)
-		checkError("udp read success", err, true)
-		fmt.Println("clients remote addr:", addr, addr.String())
-		dnsMsgHdr, dnsMsgQst, _ := parseDNSRequest(buf)
-		targetDomainName := dnsMsgQst.parseDomainName()
-		targetIP, _ := getIPAddrByDomainName(hosts, targetDomainName)
+		sbuf := new(safeBuf)
+		sbuf.buf = make([]byte, 512)
 
-		fmt.Printf("target IP wuhu: %s, target Domain Name: %s\n", targetIP, targetDomainName)
-		if len(targetIP) == 0 {
-			fmt.Println("communicate with remote DNS")
-			resp := communicateWithForwardDNS(connToRemote, dnsMsgHdr, dnsMsgQst)
-			hdr, qst, length := parseDNSRequest(resp)
-			hdr.ID--
-			resp = composeHdrQstMultiRR(hdr, qst, resp[length:])
-			_, err = clientsConn.WriteTo(resp, addr)
-			checkError("return udp success", err, true)
-			fmt.Println("wuhu!", resp)
-		} else if targetIP == "127.0.0.1" || targetIP == "0.0.0.0" {
-			// 127.0.0.1 and 0.0.0.0 is 2 types of forbidden ip in DNS hosts
-			// RCODE(3) in "0x8183" means name error
-			hdr := DNSMsgHdr{
-				dnsMsgHdr.ID, 0x8183,
-				dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT,
-				dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT,
-			}
-			resp := composeHdrQst(hdr, dnsMsgQst)
-			fmt.Println("resp:", resp)
-			clientsConn.WriteTo(resp, addr)
-		} else {
-			// found in hosts
-			fmt.Println("found in hosts:", targetIP, "<=>", targetDomainName)
-			hdr := DNSMsgHdr{
-				dnsMsgHdr.ID, 0x8180,
-				dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT,
-				dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT,
-			}
-			asr := createDNSMsgAsr(1, 1, 31, 4, targetIP)
-			resp := composeHdrQstAsr(hdr, dnsMsgQst, asr)
-			fmt.Println("resp:", resp)
-			clientsConn.WriteTo(resp, addr)
+		sbuf.mtx.Lock()
+		_, addr, err := clientsConn.ReadFrom(sbuf.buf)
+		sbuf.mtx.Unlock()
+
+		checkError("udp read success", err, true)
+		fmt.Println("DNS-Relay> clients remote addr:", addr, addr.String())
+
+		// use sbuf instead of sbuf.buf to protect data in sbuf.buf
+		go handler(hosts, sbuf, connToRemote, clientsConn, addr)
+	}
+}
+
+// hosts: an IP address;
+// sbuf: a struct that includes mutex and buf;
+// connToRemote: from net.DialUDP, a connect to remote server
+// clientsConn: from net.ListenPacket, 127.0.0.1:53
+// addr: from clientsConn.ReadFrom, address which is on the packet received
+func handler(hosts map[string]string, sbuf *safeBuf, connToRemote *net.UDPConn, clientsConn net.PacketConn, addr net.Addr) {
+	sbuf.mtx.Lock()
+	dnsMsgHdr, dnsMsgQst, _ := parseDNSRequest(sbuf.buf)
+	sbuf.mtx.Unlock()
+
+	targetDomainName := dnsMsgQst.parseDomainName()
+	targetIP, _ := getIPAddrByDomainName(hosts, targetDomainName)
+
+	fmt.Printf("DNS-Relay> target IP wuhu: %s, target Domain Name: %s\n", targetIP, targetDomainName)
+	if len(targetIP) == 0 {
+		fmt.Println("DNS-Relay> communicate with remote DNS...")
+		resp := communicateWithForwardDNS(connToRemote, dnsMsgHdr, dnsMsgQst)
+		hdr, qst, length := parseDNSRequest(resp)
+		hdr.ID--
+		resp = composeHdrQstMultiRR(hdr, qst, resp[length:])
+		_, err := clientsConn.WriteTo(resp, addr)
+		checkError("return udp success", err, true)
+		fmt.Println("DNS-Relay>", resp)
+	} else if targetIP == "127.0.0.1" || targetIP == "0.0.0.0" {
+		// 127.0.0.1 and 0.0.0.0 is 2 types of forbidden ip in DNS hosts
+		// RCODE(3) in "0x8183" means name error
+		hdr := DNSMsgHdr{
+			dnsMsgHdr.ID, 0x8183,
+			dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT,
+			dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT,
 		}
+		resp := composeHdrQst(hdr, dnsMsgQst)
+		fmt.Println("DNS-Relay>", resp)
+		clientsConn.WriteTo(resp, addr)
+	} else {
+		// found in hosts
+		fmt.Println("DNS-Relay> found in hosts:", targetIP, "<=>", targetDomainName)
+		hdr := DNSMsgHdr{
+			dnsMsgHdr.ID, 0x8180,
+			dnsMsgHdr.QDCOUNT, dnsMsgHdr.ANCOUNT,
+			dnsMsgHdr.NSCOUNT, dnsMsgHdr.ARCOUNT,
+		}
+		asr := createDNSMsgAsr(1, 1, 31, 4, targetIP)
+		resp := composeHdrQstAsr(hdr, dnsMsgQst, asr)
+		fmt.Println("DNS-Relay>", resp)
+		clientsConn.WriteTo(resp, addr)
 	}
 }
 
